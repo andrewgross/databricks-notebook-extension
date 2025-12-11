@@ -30,14 +30,14 @@
   "contributes": {
     "notebooks": [
       {
-        "type": "databricks-notebook",
+        "type": "jupyter-notebook",
         "displayName": "Databricks Notebook",
         "selector": [
           {
-            "filenamePattern": "*.py"
+            "filenamePattern": "databricks-notebook:/**/*.py"
           }
         ],
-        "priority": "option"
+        "priority": "default"
       }
     ],
     "commands": [
