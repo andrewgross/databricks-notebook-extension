@@ -9,13 +9,16 @@ import {
   Disposable,
   workspace,
 } from 'vscode';
+import { pyToIpynb, ipynbToPy } from './ipynbConverter';
 
 /**
  * Virtual filesystem provider for databricks-notebook:// URIs
  *
- * This maps virtual notebook URIs back to real .py files on disk.
- * The scheme allows VS Code to use our NotebookSerializer for .py files
- * without claiming the .py extension globally.
+ * This maps virtual notebook URIs back to real .py files on disk,
+ * transforming between Databricks .py format and .ipynb JSON format.
+ *
+ * The transformation allows VS Code's built-in jupyter-notebook serializer
+ * to handle our files, which means we get Jupyter kernel support for free.
  */
 export class DatabricksNotebookFileSystem implements FileSystemProvider {
   private readonly _onDidChangeFile = new EventEmitter<FileChangeEvent[]>();
@@ -35,16 +38,35 @@ export class DatabricksNotebookFileSystem implements FileSystemProvider {
     return workspace.fs.stat(this.toRealUri(uri));
   }
 
+  /**
+   * Read the .py file and transform it to .ipynb JSON format.
+   * VS Code's built-in jupyter-notebook serializer will then parse the JSON.
+   */
   async readFile(uri: Uri): Promise<Uint8Array> {
-    return workspace.fs.readFile(this.toRealUri(uri));
+    const pyBytes = await workspace.fs.readFile(this.toRealUri(uri));
+    const pyContent = new TextDecoder().decode(pyBytes);
+
+    // Transform .py format to .ipynb JSON format
+    const ipynbContent = pyToIpynb(pyContent);
+
+    return new TextEncoder().encode(ipynbContent);
   }
 
+  /**
+   * Receive .ipynb JSON from VS Code and transform it back to .py format
+   * before writing to the actual file on disk.
+   */
   async writeFile(
     uri: Uri,
     content: Uint8Array,
     _options: { create: boolean; overwrite: boolean }
   ): Promise<void> {
-    await workspace.fs.writeFile(this.toRealUri(uri), content);
+    const ipynbContent = new TextDecoder().decode(content);
+
+    // Transform .ipynb JSON format back to .py format
+    const pyContent = ipynbToPy(ipynbContent);
+
+    await workspace.fs.writeFile(this.toRealUri(uri), new TextEncoder().encode(pyContent));
   }
 
   watch(uri: Uri): Disposable {
