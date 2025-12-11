@@ -244,11 +244,12 @@ function parseMagicCell(
 }
 
 /**
- * Detect cell magic (%%sql, etc.) and return language info
+ * Detect cell magic (%%sql, etc.) or line magic (%sql) and return language info
  */
 function detectCellMagic(line: string): { language: CellLanguage } | null {
   const trimmed = line.trim();
 
+  // Double-percent cell magics (%%sql)
   if (MAGIC_PATTERNS.CELL_MAGIC_SQL.test(trimmed)) {
     return { language: 'sql' };
   }
@@ -257,6 +258,18 @@ function detectCellMagic(line: string): { language: CellLanguage } | null {
   }
   if (MAGIC_PATTERNS.CELL_MAGIC_SHELL.test(trimmed)) {
     return { language: 'shellscript' };
+  }
+
+  // Single-percent line magics at start of cell (%sql)
+  // These indicate the user wants this cell to be treated as that language
+  if (MAGIC_PATTERNS.LINE_MAGIC_SQL.test(trimmed)) {
+    return { language: 'sql' };
+  }
+  if (MAGIC_PATTERNS.LINE_MAGIC_SHELL.test(trimmed)) {
+    return { language: 'shellscript' };
+  }
+  if (MAGIC_PATTERNS.LINE_MAGIC_MARKDOWN.test(trimmed)) {
+    return { language: 'markdown' };
   }
 
   return null;

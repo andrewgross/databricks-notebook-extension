@@ -9,12 +9,25 @@ import { parseNotebook, serializeNotebook } from './parser';
 import { ParsedCell } from './types';
 
 /**
+ * Cell metadata for language tracking
+ */
+interface CellMetadata {
+  // VS Code Jupyter extension reads this for language identification
+  vscode?: {
+    languageId?: string;
+  };
+  // Our custom metadata for round-trip
+  databricks_language?: string;
+  [key: string]: unknown;
+}
+
+/**
  * Jupyter notebook cell structure
  */
 interface IpynbCell {
   cell_type: 'code' | 'markdown' | 'raw';
   source: string[];
-  metadata: Record<string, unknown>;
+  metadata: CellMetadata;
   execution_count?: number | null;
   outputs?: unknown[];
 }
@@ -72,13 +85,24 @@ export function pyToIpynb(pyContent: string): string {
       finalSource = ['%%bash\n', ...sourceLines];
     }
 
+    // Build metadata with VS Code language hint
+    const metadata: CellMetadata = {
+      // Store original language for round-trip
+      databricks_language: cell.languageId,
+    };
+
+    // Set VS Code language ID for syntax highlighting
+    // VS Code Jupyter extension reads this to set the cell's language
+    if (cell.languageId !== 'python') {
+      metadata.vscode = {
+        languageId: cell.languageId,
+      };
+    }
+
     return {
       cell_type: 'code',
       source: finalSource,
-      metadata: {
-        // Store original language for round-trip
-        databricks_language: cell.languageId,
-      },
+      metadata,
       execution_count: null,
       outputs: [],
     };
@@ -180,15 +204,17 @@ function joinLines(lines: string | string[]): string {
  */
 function extractMagicAndContent(
   source: string,
-  metadata: Record<string, unknown>
+  metadata: CellMetadata
 ): { content: string; language: ParsedCell['languageId'] } {
-  // Check if we stored the original language
+  // Check if we stored the original language (prefer our custom metadata)
   const storedLanguage = metadata.databricks_language as string | undefined;
+  // Also check VS Code metadata as fallback
+  const vscodeLanguage = metadata.vscode?.languageId as string | undefined;
 
   const lines = source.split('\n');
   const firstLine = lines[0]?.trim() ?? '';
 
-  // Check for cell magic
+  // Check for double-percent cell magic (%%sql)
   if (firstLine === '%%sql') {
     return {
       content: lines.slice(1).join('\n'),
@@ -210,9 +236,32 @@ function extractMagicAndContent(
     };
   }
 
+  // Check for single-percent line magic at start of cell (%sql)
+  if (firstLine === '%sql') {
+    return {
+      content: lines.slice(1).join('\n'),
+      language: 'sql',
+    };
+  }
+
+  if (firstLine === '%sh' || firstLine === '%bash') {
+    return {
+      content: lines.slice(1).join('\n'),
+      language: 'shellscript',
+    };
+  }
+
+  if (firstLine === '%md') {
+    return {
+      content: lines.slice(1).join('\n'),
+      language: 'markdown',
+    };
+  }
+
   // Use stored language if available, otherwise default to python
+  const language = storedLanguage ?? vscodeLanguage ?? 'python';
   return {
     content: source,
-    language: (storedLanguage as ParsedCell['languageId']) ?? 'python',
+    language: language as ParsedCell['languageId'],
   };
 }

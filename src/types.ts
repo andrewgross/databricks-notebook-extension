@@ -76,4 +76,10 @@ export const MAGIC_PATTERNS = {
   CELL_MAGIC_PYTHON: /^%%python\s*$/m,
   /** Cell magic shell */
   CELL_MAGIC_SHELL: /^%%(bash|sh)\s*$/m,
+  /** Single % magic at start of cell (user-typed, not in MAGIC format) */
+  LINE_MAGIC_SQL: /^%sql\s*$/m,
+  /** Single % magic for shell */
+  LINE_MAGIC_SHELL: /^%(sh|bash)\s*$/m,
+  /** Single % magic for markdown */
+  LINE_MAGIC_MARKDOWN: /^%md\s*$/m,
 } as const;
