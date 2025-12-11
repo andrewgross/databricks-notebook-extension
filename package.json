@@ -1,0 +1,116 @@
+{
+  "name": "databricks-notebook",
+  "displayName": "Databricks Notebook",
+  "description": "Open Databricks .py notebooks in VS Code's Notebook Editor",
+  "version": "0.1.0",
+  "publisher": "andrewgross",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andrewgross/databricks-notebook-extension"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Notebooks",
+    "Data Science"
+  ],
+  "keywords": [
+    "databricks",
+    "notebook",
+    "jupyter",
+    "python",
+    "sql"
+  ],
+  "activationEvents": [
+    "onFileSystem:databricks-notebook"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "notebooks": [
+      {
+        "type": "databricks-notebook",
+        "displayName": "Databricks Notebook",
+        "selector": [
+          {
+            "filenamePattern": "*.py"
+          }
+        ],
+        "priority": "option"
+      }
+    ],
+    "commands": [
+      {
+        "command": "databricks.openAsNotebook",
+        "title": "Open as Databricks Notebook",
+        "category": "Databricks"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "databricks.openAsNotebook",
+          "when": "resourceLangId == python",
+          "group": "navigation"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "databricks.openAsNotebook",
+          "when": "resourceLangId == python"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "databricks.openAsNotebook",
+          "when": "editorLangId == python"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Databricks Notebook",
+      "properties": {
+        "databricksNotebook.defaultFormat": {
+          "type": "string",
+          "enum": [
+            "databricks",
+            "percent"
+          ],
+          "default": "databricks",
+          "description": "Default format when creating new notebooks"
+        },
+        "databricksNotebook.preserveFormat": {
+          "type": "boolean",
+          "default": true,
+          "description": "Preserve original file format on save (vs normalizing)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "watch": "npm run build -- --watch",
+    "lint": "eslint src --ext ts",
+    "lint:fix": "eslint src --ext ts --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "@vscode/vsce": "^2.22.0",
+    "esbuild": "^0.19.8",
+    "eslint": "^8.55.0",
+    "typescript": "^5.3.2",
+    "vitest": "^1.0.0"
+  }
+}

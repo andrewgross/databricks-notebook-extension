@@ -51,7 +51,7 @@ There is **no content-based detection** — the decision is purely extension-bas
 
 ### Primary Goals
 
-1. **Open Databricks `.py` notebooks in VS Code's Notebook Editor** — not the text editor with Interactive Window, but the actual notebook UI used for `.ipynb` files
+1. **Open Databricks `.py` notebooks in VS Code's Notebook Editor** — not the text editor with Interactive Window, but the actual notebook UI used for `.ipynb` files. Its fine if the user has to right click a file to activate this view.
 
 2. **Eliminate pyright errors for magic commands** — by using the Notebook Editor, magic cells get the same error filtering treatment as `.ipynb` files
 
