@@ -4,6 +4,7 @@
   "description": "Open Databricks .py notebooks in VS Code's Notebook Editor",
   "version": "0.2.0",
   "publisher": "andrewgross",
+  "icon": "db-icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -80,7 +81,7 @@
         },
         "databricksNotebook.experimentalShadowFiles": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Enable shadow file mode for improved Pylance cross-cell type checking. When enabled, notebooks are opened via temporary .ipynb files which allows Pylance to analyze variables across cells. The original .py file remains the source of truth."
         }
       }
