@@ -17,6 +17,7 @@ import { pyToIpynb, ipynbToPy } from './ipynbConverter';
 import { parseNotebook } from './parser';
 import { ParsedCell } from './types';
 import { NOTEBOOK_TYPE } from './constants';
+import { matchCellsByContent, CellContent } from './cellMatcher';
 
 /**
  * Metadata stored in shadow .ipynb for crash recovery
@@ -208,21 +209,22 @@ export class ShadowManager implements vscode.Disposable {
   ): vscode.NotebookEdit[] {
     const oldCells = notebook.getCells();
 
-    // Build a map of old cell content -> cell data (including outputs)
-    // Use a multimap since the same content could appear multiple times
-    const oldCellsByContent = new Map<string, vscode.NotebookCell[]>();
-    for (const cell of oldCells) {
-      const content = cell.document.getText();
-      const existing = oldCellsByContent.get(content) || [];
-      existing.push(cell);
-      oldCellsByContent.set(content, existing);
-    }
+    // Convert to simple content representations for matching
+    const oldCellContents: CellContent[] = oldCells.map((cell, index) => ({
+      content: cell.document.getText(),
+      id: index,
+    }));
 
-    // Track which old cells we've used (to handle duplicates correctly)
-    const usedOldCells = new Set<vscode.NotebookCell>();
+    const newCellContents: CellContent[] = newCells.map((cell, index) => ({
+      content: cell.source,
+      id: index,
+    }));
 
-    // Build new notebook cells, preserving outputs where content matches
-    const newNotebookCells: vscode.NotebookCellData[] = newCells.map(newCell => {
+    // Use pure function to compute matches
+    const matches = matchCellsByContent(oldCellContents, newCellContents);
+
+    // Build new notebook cells using match results
+    const newNotebookCells: vscode.NotebookCellData[] = newCells.map((newCell, index) => {
       const cellKind = newCell.cellKind === 'markup'
         ? vscode.NotebookCellKind.Markup
         : vscode.NotebookCellKind.Code;
@@ -233,32 +235,32 @@ export class ShadowManager implements vscode.Disposable {
         newCell.languageId
       );
 
-      // Try to find a matching old cell to preserve its outputs
-      const matchingOldCells = oldCellsByContent.get(newCell.source);
-      if (matchingOldCells) {
-        // Find first unused matching cell
-        const unusedMatch = matchingOldCells.find(c => !usedOldCells.has(c));
-        if (unusedMatch) {
-          usedOldCells.add(unusedMatch);
+      // Check if this new cell matched an old cell
+      const match = matches[index];
+      const oldIndex = match?.oldIndex;
+      if (oldIndex !== undefined) {
+        const oldCell = oldCells[oldIndex];
+        if (!oldCell) {
+          return cellData;
+        }
 
-          // Copy outputs and execution summary
-          if (unusedMatch.outputs.length > 0) {
-            cellData.outputs = unusedMatch.outputs.map(output =>
-              new vscode.NotebookCellOutput(
-                output.items.map(item =>
-                  new vscode.NotebookCellOutputItem(item.data, item.mime)
-                ),
-                output.metadata
-              )
-            );
-          }
-          if (unusedMatch.executionSummary) {
-            cellData.executionSummary = {
-              executionOrder: unusedMatch.executionSummary.executionOrder,
-              success: unusedMatch.executionSummary.success,
-              timing: unusedMatch.executionSummary.timing
-            };
-          }
+        // Copy outputs and execution summary from matched old cell
+        if (oldCell.outputs.length > 0) {
+          cellData.outputs = oldCell.outputs.map(output =>
+            new vscode.NotebookCellOutput(
+              output.items.map(item =>
+                new vscode.NotebookCellOutputItem(item.data, item.mime)
+              ),
+              output.metadata
+            )
+          );
+        }
+        if (oldCell.executionSummary) {
+          cellData.executionSummary = {
+            executionOrder: oldCell.executionSummary.executionOrder,
+            success: oldCell.executionSummary.success,
+            timing: oldCell.executionSummary.timing
+          };
         }
       }
 
