@@ -2,7 +2,7 @@
   "name": "databricks-notebook",
   "displayName": "Databricks Notebook",
   "description": "Open Databricks .py notebooks in VS Code's Notebook Editor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "andrewgross",
   "license": "MIT",
   "repository": {
@@ -28,22 +28,15 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "notebooks": [
-      {
-        "type": "jupyter-notebook",
-        "displayName": "Databricks Notebook",
-        "selector": [
-          {
-            "filenamePattern": "databricks-notebook:/**/*.py"
-          }
-        ],
-        "priority": "default"
-      }
-    ],
     "commands": [
       {
         "command": "databricks.openAsNotebook",
         "title": "Open as Databricks Notebook",
+        "category": "Databricks"
+      },
+      {
+        "command": "databricks.reloadNotebook",
+        "title": "Reload Notebook from Disk",
         "category": "Databricks"
       }
     ],
@@ -84,6 +77,11 @@
           "type": "boolean",
           "default": true,
           "description": "Preserve original file format on save (vs normalizing)"
+        },
+        "databricksNotebook.experimentalShadowFiles": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable shadow file mode for improved Pylance cross-cell type checking. When enabled, notebooks are opened via temporary .ipynb files which allows Pylance to analyze variables across cells. The original .py file remains the source of truth."
         }
       }
     }
