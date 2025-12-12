@@ -1,5 +1,7 @@
 # Databricks Notebook Extension for VS Code
 
+**NOTE:** This codebase dictated but not read.\*
+
 Open Databricks `.py` notebook files in VS Code's native Notebook Editor.
 
 ## Problem
@@ -57,6 +59,23 @@ import pandas as pd
 SELECT * FROM my_table
 ```
 
+### Supported Magic Commands
+
+- **SQL**: `%sql` (single line) and `%%sql` (cell)
+- **Shell**: `%%bash`, `%%sh`
+- **Markdown**: `# MAGIC %md` or `# %% [markdown]`
+- **Other magics**: Preserved as `# MAGIC %command` on save
+
+**NOTE:** Actual human chiming in here. The reason for these magic commands is because I have custom Jupyter `cell_magic` functions registered to these prefixes to do things like running SQL commands via Databricks Connect.  The catchall `# MAGIC` is to handle things like `%restart_python` or `%run` for databricks notebooks.
+
+
+## Configuration
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `databricksNotebook.defaultFormat` | `databricks` | Default format when creating new notebooks (`databricks` or `percent`) |
+| `databricksNotebook.preserveFormat` | `true` | Preserve original file format on save |
+
 ## Development
 
 ```bash
@@ -82,6 +101,6 @@ make lint
 make package
 ```
 
-## License
+-----------
 
-MIT
+\* AKA Claude wrote most of this at my prompting. I am not a master of typescript or JS, and do not have the ability to review it at a deep level. That said, I am still responsible for errors in the codebase, notwithstanding the the original meaning of the introductory phrase. 
