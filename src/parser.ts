@@ -127,8 +127,11 @@ function createCellFromDatabricksLines(
   }
 
   // Check if this is a MAGIC cell
+  // Handle both '# MAGIC ' (with trailing space) and '# MAGIC' (without trailing space for empty lines)
   const isMagicCell = lines.every(line =>
-    line.startsWith(MARKERS.MAGIC_PREFIX) || line.trim() === ''
+    line.startsWith(MARKERS.MAGIC_PREFIX) ||
+    line === '# MAGIC' ||
+    line.trim() === ''
   );
 
   if (isMagicCell) {
@@ -172,9 +175,13 @@ function parseMagicCell(
   endLine: number
 ): ParsedCell {
   // Strip MAGIC prefix from each line
+  // Handle both '# MAGIC ' (with trailing space) and '# MAGIC' (without trailing space for empty lines)
   const strippedLines = lines.map(line => {
     if (line.startsWith(MARKERS.MAGIC_PREFIX)) {
       return line.slice(MARKERS.MAGIC_PREFIX.length);
+    }
+    if (line === '# MAGIC') {
+      return '';
     }
     return line;
   });

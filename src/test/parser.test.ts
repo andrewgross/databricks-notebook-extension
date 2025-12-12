@@ -123,6 +123,53 @@ SELECT * FROM table`;
       expect(result.cells[0]?.languageId).toBe('shellscript');
     });
 
+    it('parse_markdown_magic_with_empty_lines_no_trailing_space_returns_markup', () => {
+      // Empty lines in magic cells often appear as '# MAGIC' without trailing space
+      const input = `# Databricks notebook source
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Title
+# MAGIC
+# MAGIC This is after an empty line`;
+
+      const result = parseNotebook(input);
+      expect(result.cells).toHaveLength(1);
+      expect(result.cells[0]?.cellKind).toBe('markup');
+      expect(result.cells[0]?.languageId).toBe('markdown');
+      expect(result.cells[0]?.source).toContain('Title');
+      expect(result.cells[0]?.source).toContain('This is after an empty line');
+    });
+
+    it('parse_markdown_magic_multiline_with_formatting_returns_markup', () => {
+      // Real-world example with multiple empty lines and formatting
+      const input = `# Databricks notebook source
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Brand Search Vector Query Pipeline
+# MAGIC
+# MAGIC This pipeline runs vector searches against brand content with support for
+# MAGIC two backends:
+# MAGIC - **SQL**: Uses Databricks SQL LATERAL join (serverless)
+# MAGIC - **FDTF**: Uses pyspark_toolkit.fdtf with ThreadPoolExecutor (supports filters)
+# MAGIC
+# MAGIC **Input Table:** \`yd_crdt.data_science_sandbox.brand_search_content_1\`
+# MAGIC **Index:** \`yd_crdt.data_science_sandbox.brand_search_content_index_1_1\`
+# MAGIC
+# MAGIC Two query modes:
+# MAGIC 1. \`search_content\` - Uses the full search_content column
+# MAGIC 2. \`brand\` - Uses only the brand name`;
+
+      const result = parseNotebook(input);
+      expect(result.cells).toHaveLength(1);
+      expect(result.cells[0]?.cellKind).toBe('markup');
+      expect(result.cells[0]?.languageId).toBe('markdown');
+      expect(result.cells[0]?.source).toContain('Brand Search Vector Query Pipeline');
+      expect(result.cells[0]?.source).toContain('**SQL**');
+      expect(result.cells[0]?.source).toContain('Two query modes:');
+    });
+
     it('handle_varying_dash_counts_in_delimiter', () => {
       const input = `# Databricks notebook source
 # COMMAND -----
@@ -317,6 +364,39 @@ import pandas as pd
       const reparsed = parseNotebook(serialized);
 
       expect(reparsed.cells.length).toBe(parsed.cells.length);
+    });
+
+    it('roundtrip_databricks_markdown_with_empty_lines_preserves_content', () => {
+      // Test round-trip with empty lines in markdown (represented as '# MAGIC' without trailing space)
+      const input = `# Databricks notebook source
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Title
+# MAGIC
+# MAGIC Paragraph after empty line
+# MAGIC
+# MAGIC - Item 1
+# MAGIC - Item 2
+`;
+
+      const parsed = parseNotebook(input);
+      expect(parsed.cells).toHaveLength(1);
+      expect(parsed.cells[0]?.cellKind).toBe('markup');
+
+      const serialized = serializeNotebook(
+        parsed.cells,
+        'databricks',
+        parsed.hasDatabricksHeader
+      );
+      const reparsed = parseNotebook(serialized);
+
+      expect(reparsed.cells.length).toBe(parsed.cells.length);
+      expect(reparsed.cells[0]?.cellKind).toBe('markup');
+      expect(reparsed.cells[0]?.source).toContain('Title');
+      expect(reparsed.cells[0]?.source).toContain('Paragraph after empty line');
+      expect(reparsed.cells[0]?.source).toContain('Item 1');
     });
   });
 });
