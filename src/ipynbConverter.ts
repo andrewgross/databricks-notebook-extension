@@ -206,9 +206,9 @@ function extractMagicAndContent(
   metadata: CellMetadata
 ): { content: string; language: ParsedCell['languageId'] } {
   // Check if we stored the original language (prefer our custom metadata)
-  const storedLanguage = metadata.databricks_language as string | undefined;
+  const storedLanguage = metadata.databricks_language;
   // Also check VS Code metadata as fallback
-  const vscodeLanguage = metadata.vscode?.languageId as string | undefined;
+  const vscodeLanguage = metadata.vscode?.languageId;
 
   const lines = source.split('\n');
   const firstLine = lines[0]?.trim() ?? '';
