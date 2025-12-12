@@ -14,6 +14,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as crypto from 'crypto';
 import { pyToIpynb, ipynbToPy } from './ipynbConverter';
+import { parseNotebook } from './parser';
+import { ParsedCell } from './types';
 import { NOTEBOOK_TYPE } from './constants';
 
 /**
@@ -92,10 +94,14 @@ export class ShadowManager implements vscode.Disposable {
       vscode.workspace.onDidCloseNotebookDocument(doc => this.handleNotebookClosed(doc))
     );
 
-    // Update status bar when active editor changes
+    // Update status bar when active editor changes and check for external changes
     this.disposables.push(
       vscode.window.onDidChangeActiveNotebookEditor(editor => {
         this.updateStatusBar(editor?.notebook);
+        // Check for external changes when notebook tab becomes active
+        if (editor?.notebook) {
+          void this.checkForExternalChanges(editor.notebook);
+        }
       })
     );
   }
@@ -132,9 +138,10 @@ export class ShadowManager implements vscode.Disposable {
   }
 
   /**
-   * Reload notebook from disk (after external changes)
+   * Reload notebook from disk, preserving outputs for unchanged cells.
+   * Returns true if reload was successful.
    */
-  async reloadNotebook(shadowUri?: vscode.Uri): Promise<void> {
+  async reloadNotebook(shadowUri?: vscode.Uri): Promise<boolean> {
     // Get shadow URI from active editor if not provided
     if (!shadowUri) {
       const activeNotebook = vscode.window.activeNotebookEditor?.notebook;
@@ -144,33 +151,184 @@ export class ShadowManager implements vscode.Disposable {
     }
 
     if (!shadowUri) {
-      return;
+      return false;
     }
 
     const watched = this.watchedNotebooks.get(shadowUri.toString());
     if (!watched) {
-      return;
+      return false;
+    }
+
+    const notebook = this.findOpenNotebook(watched.shadowUri);
+    if (!notebook) {
+      return false;
     }
 
     const pyFileName = path.basename(watched.pyUri.fsPath);
 
-    // Regenerate shadow from current .py content
     try {
-      const newHash = await this.generateShadow(watched.pyUri, watched.shadowUri);
-      watched.lastKnownPyHash = newHash;
-      watched.isReadOnly = false;
+      // Read and parse new .py content
+      const pyContent = await vscode.workspace.fs.readFile(watched.pyUri);
+      const pyText = new TextDecoder().decode(pyContent);
+      const parsed = parseNotebook(pyText);
 
-      // Reload the notebook in the editor
-      // Close and reopen to refresh content
-      await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-      await vscode.commands.executeCommand('vscode.openWith', watched.shadowUri, NOTEBOOK_TYPE);
+      // Build edits that preserve outputs for unchanged cells
+      const edit = new vscode.WorkspaceEdit();
+      const notebookEdits = this.buildPreservingEdits(notebook, parsed.cells);
 
-      this.updateStatusBar(vscode.window.activeNotebookEditor?.notebook);
+      // Apply edits
+      edit.set(notebook.uri, notebookEdits);
+      const success = await vscode.workspace.applyEdit(edit);
+
+      if (success) {
+        // Update shadow file to match new content
+        await this.generateShadow(watched.pyUri, watched.shadowUri);
+        watched.lastKnownPyHash = this.computeHash(pyContent);
+        watched.isReadOnly = false;
+        this.updateStatusBar(notebook);
+      }
+
+      return success;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       void vscode.window.showErrorMessage(
         `Failed to reload ${pyFileName}: ${message}`
       );
+      return false;
+    }
+  }
+
+  /**
+   * Build notebook edits that preserve outputs for cells with matching content.
+   * Uses content-based matching to map old cells to new cells.
+   */
+  private buildPreservingEdits(
+    notebook: vscode.NotebookDocument,
+    newCells: ParsedCell[]
+  ): vscode.NotebookEdit[] {
+    const oldCells = notebook.getCells();
+
+    // Build a map of old cell content -> cell data (including outputs)
+    // Use a multimap since the same content could appear multiple times
+    const oldCellsByContent = new Map<string, vscode.NotebookCell[]>();
+    for (const cell of oldCells) {
+      const content = cell.document.getText();
+      const existing = oldCellsByContent.get(content) || [];
+      existing.push(cell);
+      oldCellsByContent.set(content, existing);
+    }
+
+    // Track which old cells we've used (to handle duplicates correctly)
+    const usedOldCells = new Set<vscode.NotebookCell>();
+
+    // Build new notebook cells, preserving outputs where content matches
+    const newNotebookCells: vscode.NotebookCellData[] = newCells.map(newCell => {
+      const cellKind = newCell.cellKind === 'markup'
+        ? vscode.NotebookCellKind.Markup
+        : vscode.NotebookCellKind.Code;
+
+      const cellData = new vscode.NotebookCellData(
+        cellKind,
+        newCell.source,
+        newCell.languageId
+      );
+
+      // Try to find a matching old cell to preserve its outputs
+      const matchingOldCells = oldCellsByContent.get(newCell.source);
+      if (matchingOldCells) {
+        // Find first unused matching cell
+        const unusedMatch = matchingOldCells.find(c => !usedOldCells.has(c));
+        if (unusedMatch) {
+          usedOldCells.add(unusedMatch);
+
+          // Copy outputs and execution summary
+          if (unusedMatch.outputs.length > 0) {
+            cellData.outputs = unusedMatch.outputs.map(output =>
+              new vscode.NotebookCellOutput(
+                output.items.map(item =>
+                  new vscode.NotebookCellOutputItem(item.data, item.mime)
+                ),
+                output.metadata
+              )
+            );
+          }
+          if (unusedMatch.executionSummary) {
+            cellData.executionSummary = {
+              executionOrder: unusedMatch.executionSummary.executionOrder,
+              success: unusedMatch.executionSummary.success,
+              timing: unusedMatch.executionSummary.timing
+            };
+          }
+        }
+      }
+
+      return cellData;
+    });
+
+    // Replace all cells with new cells
+    return [
+      vscode.NotebookEdit.replaceCells(
+        new vscode.NotebookRange(0, oldCells.length),
+        newNotebookCells
+      )
+    ];
+  }
+
+  /**
+   * Check for external changes when notebook tab becomes active.
+   * Silently reloads if no unsaved changes, otherwise prompts user.
+   */
+  private async checkForExternalChanges(notebook: vscode.NotebookDocument): Promise<void> {
+    const watched = this.watchedNotebooks.get(notebook.uri.toString());
+    if (!watched || watched.isReadOnly) {
+      return; // Not our notebook or already marked read-only
+    }
+
+    // Read current .py content
+    let currentPyContent: Uint8Array;
+    try {
+      currentPyContent = await vscode.workspace.fs.readFile(watched.pyUri);
+    } catch {
+      return; // File might be temporarily unavailable
+    }
+
+    const currentHash = this.computeHash(currentPyContent);
+
+    // Check if file actually changed
+    if (currentHash === watched.lastKnownPyHash) {
+      return; // No changes
+    }
+
+    const pyFileName = path.basename(watched.pyUri.fsPath);
+
+    // Check if notebook has unsaved changes
+    if (notebook.isDirty) {
+      // Has unsaved changes - must prompt user
+      const choice = await vscode.window.showWarningMessage(
+        `${pyFileName} changed on disk, but you have unsaved edits. ` +
+        `What would you like to do?`,
+        { modal: true },
+        'Discard my edits and reload',
+        'Keep my edits (read-only)'
+      );
+
+      if (choice === 'Discard my edits and reload') {
+        await this.reloadNotebook(watched.shadowUri);
+      } else {
+        watched.isReadOnly = true;
+        this.updateStatusBar(notebook);
+        void vscode.window.showInformationMessage(
+          `Notebook is now read-only. Reload from disk to continue editing.`
+        );
+      }
+    } else {
+      // No unsaved changes - auto-reload with smart merge to preserve outputs
+      const success = await this.reloadNotebook(watched.shadowUri);
+      if (success) {
+        void vscode.window.showInformationMessage(
+          `${pyFileName} updated from disk. Cell outputs preserved where possible.`
+        );
+      }
     }
   }
 
@@ -460,7 +618,7 @@ export class ShadowManager implements vscode.Disposable {
       );
 
       if (choice === 'Discard my edits and reload') {
-        watched.lastKnownPyHash = currentHash;
+        // Use smart reload to preserve outputs where possible
         await this.reloadNotebook(watched.shadowUri);
       } else {
         // Keep edits but mark read-only to prevent accidental overwrite
@@ -472,19 +630,12 @@ export class ShadowManager implements vscode.Disposable {
         );
       }
     } else {
-      // No unsaved changes - simpler decision
-      const choice = await vscode.window.showWarningMessage(
-        `${pyFileName} changed on disk. Reload to see the latest version?`,
-        'Reload',
-        'Ignore (read-only)'
-      );
-
-      if (choice === 'Reload') {
-        watched.lastKnownPyHash = currentHash;
-        await this.reloadNotebook(watched.shadowUri);
-      } else {
-        watched.isReadOnly = true;
-        this.updateStatusBar(notebook);
+      // No unsaved changes - auto-reload with smart merge to preserve outputs
+      const success = await this.reloadNotebook(watched.shadowUri);
+      if (success) {
+        void vscode.window.showInformationMessage(
+          `${pyFileName} updated from disk. Cell outputs preserved where possible.`
+        );
       }
     }
   }

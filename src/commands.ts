@@ -74,7 +74,7 @@ async function openAsNotebook(uri?: Uri): Promise<void> {
 }
 
 /**
- * Reload the current notebook from disk
+ * Reload the current notebook from disk (preserves outputs for unchanged cells)
  */
 async function reloadNotebook(): Promise<void> {
   if (!shadowManager) {
