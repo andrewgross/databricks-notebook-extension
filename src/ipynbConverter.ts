@@ -76,8 +76,9 @@ export function pyToIpynb(pyContent: string): string {
       };
     }
 
-    // For non-Python code cells, we need to add the magic command
-    // so the kernel knows how to execute them
+    // For non-Python code cells, add the magic command so the kernel
+    // knows how to execute them. This means %%sql will be visible in the
+    // cell, but it gets stripped when saving back to .py format.
     let finalSource = sourceLines;
     if (cell.languageId === 'sql') {
       finalSource = ['%%sql\n', ...sourceLines];
@@ -85,14 +86,12 @@ export function pyToIpynb(pyContent: string): string {
       finalSource = ['%%bash\n', ...sourceLines];
     }
 
-    // Build metadata with VS Code language hint
+    // Build metadata for round-trip and VS Code language hints
     const metadata: CellMetadata = {
-      // Store original language for round-trip
       databricks_language: cell.languageId,
     };
 
     // Set VS Code language ID for syntax highlighting
-    // VS Code Jupyter extension reads this to set the cell's language
     if (cell.languageId !== 'python') {
       metadata.vscode = {
         languageId: cell.languageId,
@@ -255,6 +254,17 @@ function extractMagicAndContent(
     return {
       content: lines.slice(1).join('\n'),
       language: 'markdown',
+    };
+  }
+
+  // Check for any other single-line % magic (like %restart_python, %pip, %run)
+  // These stay as Python cells but we track them so they serialize with # MAGIC
+  if (/^%[a-zA-Z_]/.test(firstLine) && !firstLine.startsWith('%%')) {
+    // This is a line magic - keep it in the source as-is
+    // It will execute as a Python magic and serialize with # MAGIC prefix
+    return {
+      content: source,
+      language: 'python',
     };
   }
 

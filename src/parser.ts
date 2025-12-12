@@ -389,8 +389,20 @@ function serializeDatabricksFormat(cells: ParsedCell[], includeHeader: boolean):
         lines.push(`${MARKERS.MAGIC_PREFIX}${contentLine}`);
       }
     } else {
-      // Python code - output as-is
-      lines.push(cell.source);
+      // Python code
+      const firstLine = cell.source.split('\n')[0]?.trim() ?? '';
+
+      // Check if this is a line magic (like %restart_python, %pip, %run)
+      // These need to be wrapped in # MAGIC prefix for Databricks format
+      if (/^%[a-zA-Z_]/.test(firstLine) && !firstLine.startsWith('%%')) {
+        const contentLines = cell.source.split('\n');
+        for (const contentLine of contentLines) {
+          lines.push(`${MARKERS.MAGIC_PREFIX}${contentLine}`);
+        }
+      } else {
+        // Regular Python code - output as-is
+        lines.push(cell.source);
+      }
     }
   }
 
