@@ -5,11 +5,13 @@ All notable changes to the Databricks Notebook extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2025-12-19
 
 ### Added
 
 - Open VSX Registry publishing support alongside VS Code Marketplace (da09641)
+- Automatic git tagging during publish process to correlate versions with commits (71d3d74)
+- Tag validation ensuring HEAD matches version tag before publishing (71d3d74)
 
 ### Changed
 
@@ -17,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated esbuild to v0.27.2 to fix security vulnerability GHSA-67mh-4wv8-2f99 (df203cc)
 - Publishing tokens now read automatically from ~/.vsce-token and ~/.ovsx-token (da09641)
 - Makefile publish target no longer runs redundant build step (da09641, c88841b)
+- Package step now performs clean build to ensure fresh artifacts (71d3d74)
+- Same .vsix file is now published to both VS Code and Open VSX registries (71d3d74)
+- Publish targets now require version tag to exist before uploading (71d3d74)
 
 ## [0.3.0] - 2025-12-19
 
