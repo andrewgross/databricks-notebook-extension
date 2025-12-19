@@ -98,7 +98,7 @@
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
     "@vitest/coverage-v8": "^4.0.15",
-    "@vscode/vsce": "^2.22.0",
+    "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.19.8",
     "eslint": "^8.55.0",
     "ovsx": "^0.10.7",
