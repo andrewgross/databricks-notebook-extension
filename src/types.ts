@@ -66,6 +66,8 @@ export const MAGIC_PATTERNS = {
   PYTHON_MAGIC: /^%python\b/,
   /** Shell magic (Databricks format) */
   SHELL_MAGIC: /^%(sh|bash)\b/,
+  /** Pip magic - keep full command in output (Databricks format) */
+  PIP_MAGIC: /^%pip\b/,
   /** R magic (Databricks format) */
   R_MAGIC: /^%r\b/,
   /** Scala magic (Databricks format) */
@@ -80,6 +82,8 @@ export const MAGIC_PATTERNS = {
   LINE_MAGIC_SQL: /^%sql\s*$/m,
   /** Single % magic for shell */
   LINE_MAGIC_SHELL: /^%(sh|bash)\s*$/m,
+  /** Single % magic for pip */
+  LINE_MAGIC_PIP: /^%pip\b/,
   /** Single % magic for markdown */
   LINE_MAGIC_MARKDOWN: /^%md\s*$/m,
 } as const;

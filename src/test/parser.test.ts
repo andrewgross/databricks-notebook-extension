@@ -123,6 +123,20 @@ SELECT * FROM table`;
       expect(result.cells[0]?.languageId).toBe('shellscript');
     });
 
+    it('parse_pip_magic_returns_shellscript', () => {
+      const input = `# Databricks notebook source
+# COMMAND ----------
+
+# MAGIC %pip install pyspark-toolkit>=0.9.0`;
+
+      const result = parseNotebook(input);
+      expect(result.cells).toHaveLength(1);
+      expect(result.cells[0]?.cellKind).toBe('code');
+      expect(result.cells[0]?.languageId).toBe('shellscript');
+      expect(result.cells[0]?.source).toContain('%pip install pyspark-toolkit');
+      expect(result.cells[0]?.source).not.toContain('# MAGIC');
+    });
+
     it('parse_markdown_magic_with_empty_lines_no_trailing_space_returns_markup', () => {
       // Empty lines in magic cells often appear as '# MAGIC' without trailing space
       const input = `# Databricks notebook source
@@ -209,6 +223,74 @@ import pandas as pd
       expect(result.cells).toHaveLength(2);
       expect(result.cells[1]?.cellKind).toBe('markup');
       expect(result.cells[1]?.languageId).toBe('markdown');
+    });
+  });
+
+  describe('multi-cell parsing with mixed types', () => {
+    it('parse_notebook_with_pip_markdown_and_python_cells_returns_correct_types', () => {
+      const input = `# Databricks notebook source
+
+# COMMAND ----------
+
+# MAGIC %pip install pyspark-toolkit>=0.9.0
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Foo Search Data Preparation
+# MAGIC
+# MAGIC Prepares foo data for foo search to identify duplicate foos across retailers.
+# MAGIC This creates the foo content table used by the foo search pipeline.
+
+# COMMAND ----------
+
+import pyspark.sql.functions as F
+from pyspark.sql import Window
+from pyspark.sql.dataframe import DataFrame
+from pyspark_toolkit.uuid import uuid5
+from foo import create_table`;
+
+      const result = parseNotebook(input);
+
+      expect(result.format).toBe('databricks');
+      expect(result.hasDatabricksHeader).toBe(true);
+      expect(result.cells).toHaveLength(3);
+
+      // First cell: %pip magic (should be shell, keeping full %pip command)
+      expect(result.cells[0]?.cellKind).toBe('code');
+      expect(result.cells[0]?.languageId).toBe('shellscript');
+      expect(result.cells[0]?.source).toContain('%pip install pyspark-toolkit');
+      expect(result.cells[0]?.source).not.toContain('# MAGIC');
+
+      // Second cell: markdown
+      expect(result.cells[1]?.cellKind).toBe('markup');
+      expect(result.cells[1]?.languageId).toBe('markdown');
+      expect(result.cells[1]?.source).toContain('Foo Search Data Preparation');
+      expect(result.cells[1]?.source).not.toContain('# MAGIC');
+
+      // Third cell: Python imports
+      expect(result.cells[2]?.cellKind).toBe('code');
+      expect(result.cells[2]?.languageId).toBe('python');
+      expect(result.cells[2]?.source).toContain('import pyspark.sql.functions');
+    });
+
+    it('parse_markdown_with_title_and_body_text_returns_markup', () => {
+      const input = `# Databricks notebook source
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Title Here
+# MAGIC Some regular text after the title.`;
+
+      const result = parseNotebook(input);
+
+      expect(result.cells).toHaveLength(1);
+      expect(result.cells[0]?.cellKind).toBe('markup');
+      expect(result.cells[0]?.languageId).toBe('markdown');
+      expect(result.cells[0]?.source).toContain('Title Here');
+      expect(result.cells[0]?.source).toContain('Some regular text');
+      expect(result.cells[0]?.source).not.toContain('# MAGIC');
     });
   });
 

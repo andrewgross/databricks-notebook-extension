@@ -290,6 +290,46 @@ print("hello")
   });
 });
 
+describe('multi-cell with pip markdown python', () => {
+  it('converts notebook with pip magic and markdown and python cells', () => {
+    const pyContent = `# Databricks notebook source
+
+# COMMAND ----------
+
+# MAGIC %pip install pyspark-toolkit>=0.9.0
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Foo Search Data Preparation
+# MAGIC
+# MAGIC Prepares foo data for foo search.
+
+# COMMAND ----------
+
+import pyspark.sql.functions as F
+from pyspark.sql import Window`;
+
+    const ipynbJson = pyToIpynb(pyContent);
+    const ipynb = JSON.parse(ipynbJson) as IpynbNotebook;
+
+    expect(ipynb.cells).toHaveLength(3);
+
+    // First cell: pip magic (code cell)
+    expect(ipynb.cells[0].cell_type).toBe('code');
+    expect(ipynb.cells[0].source.join('')).toContain('pip install');
+
+    // Second cell: markdown
+    expect(ipynb.cells[1].cell_type).toBe('markdown');
+    expect(ipynb.cells[1].source.join('')).toContain('Foo Search Data Preparation');
+    expect(ipynb.cells[1].source.join('')).not.toContain('# MAGIC');
+
+    // Third cell: Python imports
+    expect(ipynb.cells[2].cell_type).toBe('code');
+    expect(ipynb.cells[2].source.join('')).toContain('import pyspark');
+  });
+});
+
 describe('unknown magic handling', () => {
   it('preserves unknown line magics with # MAGIC prefix', () => {
     const ipynb = {

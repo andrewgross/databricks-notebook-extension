@@ -238,6 +238,17 @@ function parseMagicCell(
         endLine,
       };
     }
+
+    // %pip magic - keep the full command in output (don't strip %pip)
+    if (MAGIC_PATTERNS.PIP_MAGIC.test(firstContent)) {
+      return {
+        source: strippedLines.join('\n').trim(),
+        cellKind: 'code',
+        languageId: 'shellscript',
+        startLine,
+        endLine,
+      };
+    }
   }
 
   // Default to python for unknown magic
@@ -273,6 +284,9 @@ function detectCellMagic(line: string): { language: CellLanguage } | null {
     return { language: 'sql' };
   }
   if (MAGIC_PATTERNS.LINE_MAGIC_SHELL.test(trimmed)) {
+    return { language: 'shellscript' };
+  }
+  if (MAGIC_PATTERNS.LINE_MAGIC_PIP.test(trimmed)) {
     return { language: 'shellscript' };
   }
   if (MAGIC_PATTERNS.LINE_MAGIC_MARKDOWN.test(trimmed)) {
