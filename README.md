@@ -18,7 +18,6 @@ This extension lets you open these files in VS Code's Notebook Editor (the same 
 - Treats each cell as a separate document
 - Filters out pyright errors for magic cells
 - Provides a native notebook editing experience
-- Enables Pylance cross-cell type checking (variables defined in one cell are recognized in subsequent cells)
 
 ## Usage
 
@@ -76,7 +75,6 @@ SELECT * FROM my_table
 | Command | Description |
 |---------|-------------|
 | `Databricks: Open as Databricks Notebook` | Open a `.py` file in the Notebook Editor |
-| `Databricks: Reload Notebook from Disk` | Reload the current notebook after external changes (requires shadow files enabled) |
 
 ## Configuration
 
@@ -84,31 +82,16 @@ SELECT * FROM my_table
 |---------|---------|-------------|
 | `databricksNotebook.defaultFormat` | `databricks` | Default format when creating new notebooks (`databricks` or `percent`) |
 | `databricksNotebook.preserveFormat` | `true` | Preserve original file format on save |
-| `databricksNotebook.experimentalShadowFiles` | `true` | Enable shadow file mode for Pylance cross-cell type checking. When disabled, uses a virtual file system provider which provides basic notebook editing but no cross-cell analysis. |
 
 ## How It Works
 
-### Shadow File Mode (Default)
+The extension uses a FileSystemProvider to create a virtual `databricks-notebook://` URI scheme. When you open a `.py` file as a notebook:
 
-When shadow files are enabled (the default), the extension uses a "shadow file" approach to enable full Pylance support:
+1. The extension converts the Databricks `.py` format to `.ipynb` format in memory
+2. VS Code's built-in Jupyter notebook renderer displays the content
+3. On save, the extension converts the notebook back to the original `.py` format
 
-1. When you open a `.py` file as a notebook, the extension creates a temporary `.ipynb` file in your system's temp directory
-2. You edit the notebook normally - all changes are automatically saved back to the original `.py` file
-3. Because Pylance sees a real `.ipynb` file (not a virtual one), it can perform cross-cell analysis
-
-This means variables, imports, and type information flow between cells just like in a regular Jupyter notebook.
-
-### External Changes
-
-If the `.py` file is modified externally (e.g., by git, another editor, or a teammate):
-- You'll be prompted to reload or continue in read-only mode
-- A status bar indicator appears showing "Read-only" with a lock icon when external changes are detected
-- If you have unsaved changes, you can choose to discard them or keep editing in read-only mode
-- Click the status bar indicator or use the command `Databricks: Reload Notebook from Disk` to sync with the latest `.py` content
-
-### FileSystemProvider Mode (Legacy)
-
-If you disable shadow files (`experimentalShadowFiles: false`), the extension falls back to a virtual file system provider. This mode provides basic notebook editing but does not support Pylance cross-cell type checking.
+The original `.py` file remains the source of truth.
 
 ## Development
 
@@ -137,4 +120,4 @@ make package
 
 -----------
 
-\* AKA Claude wrote most of this at my prompting. I am not a master of typescript or JS, and do not have the ability to review it at a deep level. That said, I am still responsible for errors in the codebase, notwithstanding the the original meaning of the introductory phrase. 
+\* AKA Claude wrote most of this at my prompting. I am not a master of typescript or JS, and do not have the ability to review it at a deep level. That said, I am still responsible for errors in the codebase, notwithstanding the the original meaning of the introductory phrase.

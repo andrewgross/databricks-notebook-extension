@@ -1,33 +1,13 @@
-import { commands, window, Uri, ExtensionContext, workspace } from 'vscode';
+import { commands, window, Uri, ExtensionContext } from 'vscode';
 import { NOTEBOOK_TYPE, SCHEME } from './constants';
-import { ShadowManager } from './shadowManager';
-
-let shadowManager: ShadowManager | undefined;
-
-/**
- * Initialize the shadow manager
- */
-export function initializeShadowManager(manager: ShadowManager): void {
-  shadowManager = manager;
-}
 
 /**
  * Register all extension commands
  */
 export function registerCommands(context: ExtensionContext): void {
   context.subscriptions.push(
-    commands.registerCommand('databricks.openAsNotebook', openAsNotebook),
-    commands.registerCommand('databricks.reloadNotebook', reloadNotebook)
+    commands.registerCommand('databricks.openAsNotebook', openAsNotebook)
   );
-}
-
-/**
- * Check if shadow files feature is enabled
- */
-function useShadowFiles(): boolean {
-  return workspace
-    .getConfiguration('databricksNotebook')
-    .get<boolean>('experimentalShadowFiles', false);
 }
 
 /**
@@ -48,18 +28,7 @@ async function openAsNotebook(uri?: Uri): Promise<void> {
     return;
   }
 
-  // Use shadow file approach if enabled
-  if (useShadowFiles() && shadowManager) {
-    try {
-      await shadowManager.openAsNotebook(uri);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      void window.showErrorMessage(`Failed to open notebook: ${message}`);
-    }
-    return;
-  }
-
-  // Fall back to FileSystemProvider approach
+  // Use FileSystemProvider approach
   const notebookUri = Uri.from({
     scheme: SCHEME,
     path: uri.path,
@@ -71,16 +40,4 @@ async function openAsNotebook(uri?: Uri): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
     void window.showErrorMessage(`Failed to open notebook: ${message}`);
   }
-}
-
-/**
- * Reload the current notebook from disk (preserves outputs for unchanged cells)
- */
-async function reloadNotebook(): Promise<void> {
-  if (!shadowManager) {
-    void window.showErrorMessage('Shadow files not enabled');
-    return;
-  }
-
-  await shadowManager.reloadNotebook();
 }
