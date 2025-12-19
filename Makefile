@@ -1,4 +1,8 @@
-.PHONY: all install build watch lint lint-fix typecheck test test-watch test-coverage clean package publish help
+.PHONY: all install build watch lint lint-fix typecheck test test-watch test-coverage clean package publish publish-vscode publish-openvsx help
+
+# Token files (can be overridden via environment variables)
+VSCE_PAT ?= $(shell cat ~/.vsce-token 2>/dev/null)
+OVSX_PAT ?= $(shell cat ~/.ovsx-token 2>/dev/null)
 
 # Default target
 all: install build
@@ -47,9 +51,17 @@ clean:
 package: build
 	npm run package
 
-# Publish to marketplace (requires VSCE_PAT env var)
-publish: build
-	npm run publish
+# Publish to VS Code marketplace
+publish-vscode:
+	VSCE_PAT=$(VSCE_PAT) npm run publish:vscode
+
+# Publish to Open VSX
+publish-openvsx:
+	OVSX_PAT=$(OVSX_PAT) npm run publish:openvsx
+
+# Publish to both marketplaces
+publish:
+	VSCE_PAT=$(VSCE_PAT) OVSX_PAT=$(OVSX_PAT) npm run publish
 
 # Check everything before committing
 check: typecheck lint test
@@ -73,7 +85,9 @@ help:
 	@echo "  test-watch   - Run tests in watch mode"
 	@echo "  test-coverage - Run tests with coverage"
 	@echo "  clean        - Remove build artifacts"
-	@echo "  package      - Package extension as .vsix"
-	@echo "  publish      - Publish to VS Code marketplace"
-	@echo "  check        - Run all checks (typecheck, lint, test)"
+	@echo "  package          - Package extension as .vsix"
+	@echo "  publish          - Publish to both marketplaces"
+	@echo "  publish-vscode   - Publish to VS Code marketplace only"
+	@echo "  publish-openvsx  - Publish to Open VSX only"
+	@echo "  check            - Run all checks (typecheck, lint, test)"
 	@echo "  dev          - Set up development environment"
