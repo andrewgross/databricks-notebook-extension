@@ -91,16 +91,16 @@ ensure-tag:
 
 # Publish to VS Code marketplace (uses pre-built .vsix)
 publish-vscode: ensure-tag package
-	VSCE_PAT=$(VSCE_PAT) npx vsce publish --packagePath $(VSIX_FILE)
+	@VSCE_PAT=$(VSCE_PAT) npx vsce publish --packagePath $(VSIX_FILE)
 
 # Publish to Open VSX (uses pre-built .vsix)
 publish-openvsx: ensure-tag package
-	npx ovsx publish $(VSIX_FILE) -p $(OVSX_PAT)
+	@npx ovsx publish $(VSIX_FILE) -p $(OVSX_PAT)
 
 # Publish to both marketplaces (same artifact to both)
 publish: ensure-tag package
-	VSCE_PAT=$(VSCE_PAT) npx vsce publish --packagePath $(VSIX_FILE)
-	npx ovsx publish $(VSIX_FILE) -p $(OVSX_PAT)
+	@VSCE_PAT=$(VSCE_PAT) npx vsce publish --packagePath $(VSIX_FILE)
+	@npx ovsx publish $(VSIX_FILE) -p $(OVSX_PAT)
 
 # Check everything before committing
 check: typecheck lint test
