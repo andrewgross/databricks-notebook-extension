@@ -52,7 +52,7 @@ clean:
 	rm -rf dist out node_modules coverage *.vsix
 
 # Package the extension
-package: clean build
+package: clean install build
 	npm run package
 
 # Tag the current commit with the version and push
