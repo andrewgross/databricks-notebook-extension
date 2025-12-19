@@ -77,7 +77,7 @@ ensure-tag:
 		exit 1; \
 	fi
 	@if git rev-parse v$(VERSION) >/dev/null 2>&1; then \
-		if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse v$(VERSION))" ]; then \
+		if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse v$(VERSION)^{commit})" ]; then \
 			echo "Error: Tag v$(VERSION) exists but HEAD doesn't match it."; \
 			echo "Either bump the version or checkout the tagged commit."; \
 			exit 1; \
