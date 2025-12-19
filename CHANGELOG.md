@@ -5,6 +5,18 @@ All notable changes to the Databricks Notebook extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.4.2] - 2025-12-19
+
+### Fixed
+
+- %pip magic cells no longer incorrectly prepended with %%bash prefix during notebook conversion (95427a7)
+
+### Security
+
+- Makefile commands no longer echo personal access tokens during publish operations (b3dc7ef)
+
 ## [0.4.1] - 2025-12-19
 
 ### Fixed

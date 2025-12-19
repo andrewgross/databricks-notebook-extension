@@ -64,6 +64,7 @@ SELECT * FROM my_table
 
 - **SQL**: `%sql` (single line) and `%%sql` (cell)
 - **Shell**: `%%bash`, `%%sh`
+- **Pip**: `%pip` (displayed as shell for syntax highlighting)
 - **Markdown**: `# MAGIC %md` or `# %% [markdown]`
 - **Other magics**: Preserved as `# MAGIC %command` on save
 
