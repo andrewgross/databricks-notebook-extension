@@ -2,7 +2,7 @@
   "name": "databricks-notebook",
   "displayName": "Databricks Notebook",
   "description": "Open Databricks .py notebooks in VS Code's Notebook Editor",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "andrewgross",
   "icon": "db-icon.png",
   "license": "MIT",
