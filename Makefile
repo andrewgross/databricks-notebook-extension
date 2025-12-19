@@ -1,8 +1,12 @@
-.PHONY: all install build watch lint lint-fix typecheck test test-watch test-coverage clean package publish publish-vscode publish-openvsx help
+.PHONY: all install build watch lint lint-fix typecheck test test-watch test-coverage clean package tag ensure-tag publish publish-vscode publish-openvsx help
 
 # Token files (can be overridden via environment variables)
 VSCE_PAT ?= $(shell cat ~/.vsce-token 2>/dev/null)
 OVSX_PAT ?= $(shell cat ~/.ovsx-token 2>/dev/null)
+
+# Package name and version derived from package.json
+VERSION := $(shell node -p "require('./package.json').version")
+VSIX_FILE := $(shell node -p "const p=require('./package.json'); p.name + '-' + p.version + '.vsix'")
 
 # Default target
 all: install build
@@ -48,20 +52,55 @@ clean:
 	rm -rf dist out node_modules coverage *.vsix
 
 # Package the extension
-package: build
+package: clean build
 	npm run package
 
-# Publish to VS Code marketplace
-publish-vscode: package
-	VSCE_PAT=$(VSCE_PAT) npm run publish:vscode
+# Tag the current commit with the version and push
+tag:
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: Working directory is not clean. Commit changes first."; \
+		exit 1; \
+	fi
+	@if git rev-parse v$(VERSION) >/dev/null 2>&1; then \
+		echo "Tag v$(VERSION) already exists."; \
+	else \
+		git tag -a v$(VERSION) -m "Release v$(VERSION)"; \
+		echo "Created tag v$(VERSION)"; \
+	fi
+	git push origin v$(VERSION)
+	@echo "Pushed tag v$(VERSION) to origin"
 
-# Publish to Open VSX
-publish-openvsx: package
-	OVSX_PAT=$(OVSX_PAT) npm run publish:openvsx
+# Ensure tag exists and HEAD matches it (creates tag if needed)
+ensure-tag:
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: Working directory is not clean. Commit changes first."; \
+		exit 1; \
+	fi
+	@if git rev-parse v$(VERSION) >/dev/null 2>&1; then \
+		if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse v$(VERSION))" ]; then \
+			echo "Error: Tag v$(VERSION) exists but HEAD doesn't match it."; \
+			echo "Either bump the version or checkout the tagged commit."; \
+			exit 1; \
+		fi; \
+		echo "Tag v$(VERSION) exists and matches HEAD."; \
+	else \
+		git tag -a v$(VERSION) -m "Release v$(VERSION)"; \
+		git push origin v$(VERSION); \
+		echo "Created and pushed tag v$(VERSION)"; \
+	fi
 
-# Publish to both marketplaces
-publish: package
-	VSCE_PAT=$(VSCE_PAT) OVSX_PAT=$(OVSX_PAT) npm run publish
+# Publish to VS Code marketplace (uses pre-built .vsix)
+publish-vscode: ensure-tag package
+	VSCE_PAT=$(VSCE_PAT) npx vsce publish --packagePath $(VSIX_FILE)
+
+# Publish to Open VSX (uses pre-built .vsix)
+publish-openvsx: ensure-tag package
+	npx ovsx publish $(VSIX_FILE) -p $(OVSX_PAT)
+
+# Publish to both marketplaces (same artifact to both)
+publish: ensure-tag package
+	VSCE_PAT=$(VSCE_PAT) npx vsce publish --packagePath $(VSIX_FILE)
+	npx ovsx publish $(VSIX_FILE) -p $(OVSX_PAT)
 
 # Check everything before committing
 check: typecheck lint test
@@ -86,7 +125,8 @@ help:
 	@echo "  test-coverage - Run tests with coverage"
 	@echo "  clean        - Remove build artifacts"
 	@echo "  package          - Package extension as .vsix"
-	@echo "  publish          - Publish to both marketplaces"
+	@echo "  tag              - Tag current commit with version and push"
+	@echo "  publish          - Publish to both marketplaces (requires tag)"
 	@echo "  publish-vscode   - Publish to VS Code marketplace only"
 	@echo "  publish-openvsx  - Publish to Open VSX only"
 	@echo "  check            - Run all checks (typecheck, lint, test)"

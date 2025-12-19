@@ -5,6 +5,19 @@ All notable changes to the Databricks Notebook extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Open VSX Registry publishing support alongside VS Code Marketplace (da09641)
+
+### Changed
+
+- Updated @vscode/vsce to v3.7.1 (c546007)
+- Updated esbuild to v0.27.2 to fix security vulnerability GHSA-67mh-4wv8-2f99 (df203cc)
+- Publishing tokens now read automatically from ~/.vsce-token and ~/.ovsx-token (da09641)
+- Makefile publish target no longer runs redundant build step (da09641, c88841b)
+
 ## [0.3.0] - 2025-12-19
 
 ### Added
