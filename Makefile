@@ -52,15 +52,15 @@ package: build
 	npm run package
 
 # Publish to VS Code marketplace
-publish-vscode:
+publish-vscode: package
 	VSCE_PAT=$(VSCE_PAT) npm run publish:vscode
 
 # Publish to Open VSX
-publish-openvsx:
+publish-openvsx: package
 	OVSX_PAT=$(OVSX_PAT) npm run publish:openvsx
 
 # Publish to both marketplaces
-publish:
+publish: package
 	VSCE_PAT=$(VSCE_PAT) OVSX_PAT=$(OVSX_PAT) npm run publish
 
 # Check everything before committing
