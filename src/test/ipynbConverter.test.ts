@@ -4,7 +4,13 @@ import { pyToIpynb, ipynbToPy } from '../ipynbConverter';
 interface IpynbCell {
   cell_type: 'code' | 'markdown' | 'raw';
   source: string[];
-  metadata: Record<string, unknown>;
+  metadata: {
+    vscode?: {
+      languageId?: string;
+    };
+    databricks_language?: string;
+    [key: string]: unknown;
+  };
   execution_count?: number | null;
   outputs?: unknown[];
 }
@@ -315,9 +321,11 @@ from pyspark.sql import Window`;
 
     expect(ipynb.cells).toHaveLength(3);
 
-    // First cell: pip magic (code cell)
+    // First cell: pip magic (code cell, shellscript language, no %%bash)
     expect(ipynb.cells[0].cell_type).toBe('code');
-    expect(ipynb.cells[0].source.join('')).toContain('pip install');
+    expect(ipynb.cells[0].source.join('')).toContain('%pip install');
+    expect(ipynb.cells[0].source.join('')).not.toContain('%%bash');
+    expect(ipynb.cells[0].metadata.vscode?.languageId).toBe('shellscript');
 
     // Second cell: markdown
     expect(ipynb.cells[1].cell_type).toBe('markdown');

@@ -83,7 +83,11 @@ export function pyToIpynb(pyContent: string): string {
     if (cell.languageId === 'sql') {
       finalSource = ['%%sql\n', ...sourceLines];
     } else if (cell.languageId === 'shellscript') {
-      finalSource = ['%%bash\n', ...sourceLines];
+      // Don't add %%bash for %pip cells - they should remain as-is
+      const firstLine = cell.source.trim().split('\n')[0] ?? '';
+      if (!firstLine.startsWith('%pip')) {
+        finalSource = ['%%bash\n', ...sourceLines];
+      }
     }
 
     // Build metadata for round-trip and VS Code language hints
