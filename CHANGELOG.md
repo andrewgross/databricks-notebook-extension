@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-01-12
+
+### Fixed
+
+- Inline completions (Copilot, etc.) now properly initialize when clicking into Databricks notebook cells with custom URI schemes (1ae6a0f)
+
 ## [0.4.2] - 2025-12-19
 
 ### Fixed
