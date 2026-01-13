@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-01-12
+
+### Fixed
+
+- Inline completion providers (Copilot, etc.) now remain active through persistent no-op provider registration instead of immediate disposal (7a29236)
+
+### Security
+
+- Updated qs dependency to 6.14.1 to fix high severity DoS vulnerability (GHSA-6rw7-vpxm-498p) where arrayLimit bypass in bracket notation could cause memory exhaustion (c38df66)
+
 ## [0.4.3] - 2026-01-12
 
 ### Fixed
