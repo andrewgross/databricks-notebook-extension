@@ -1,12 +1,9 @@
-import { ExtensionContext, workspace, window, languages } from 'vscode';
+import { ExtensionContext, workspace, languages } from 'vscode';
 import { DatabricksNotebookFileSystem } from './filesystem';
 import { registerCommands } from './commands';
 import { SCHEME } from './constants';
 
 let fileSystem: DatabricksNotebookFileSystem | undefined;
-
-// Track notebooks that have been kicked to avoid repeated initialization
-const kickedNotebooks = new Set<string>();
 
 /**
  * Extension activation
@@ -28,47 +25,15 @@ export function activate(context: ExtensionContext): void {
   // Register commands
   registerCommands(context);
 
-  // Auto-kick inline completions for Databricks notebook cells
+  // Register a persistent no-op inline completion provider.
   // This fixes an issue where VS Code doesn't initialize InlineCompletionsController
-  // for notebook cells with custom parent URI schemes
-  context.subscriptions.push(
-    window.onDidChangeActiveTextEditor((editor) => {
-      if (!editor) return;
-
-      const uri = editor.document.uri;
-      if (uri.scheme !== 'vscode-notebook-cell') return;
-
-      // Decode fragment to check parent notebook scheme
-      // Fragment format: W<cell-handle>s<base64-encoded-parent-scheme>
-      const fragment = uri.fragment;
-      const idx = fragment.indexOf('s');
-      if (idx === -1) return;
-
-      const encodedScheme = fragment.substring(idx + 1);
-      let parentScheme: string;
-      try {
-        parentScheme = Buffer.from(encodedScheme, 'base64').toString('utf-8');
-      } catch {
-        return;
-      }
-
-      if (parentScheme !== SCHEME) return;
-
-      // Only kick once per notebook
-      const notebookKey = uri.path;
-      if (kickedNotebooks.has(notebookKey)) return;
-
-      // Briefly register and dispose a no-op provider to trigger initialization
-      const provider = languages.registerInlineCompletionItemProvider(
-        { pattern: '**/*' },
-        { provideInlineCompletionItems: () => undefined }
-      );
-      provider.dispose();
-
-      kickedNotebooks.add(notebookKey);
-      console.log(`Databricks: Kicked inline completions for ${notebookKey}`);
-    })
+  // for notebook cells with custom parent URI schemes. Having any provider registered
+  // keeps the inline completion system active for our custom scheme.
+  const inlineCompletionProvider = languages.registerInlineCompletionItemProvider(
+    { pattern: '**/*' },
+    { provideInlineCompletionItems: () => undefined }
   );
+  context.subscriptions.push(inlineCompletionProvider);
 
   console.log('Databricks Notebook extension activated');
 }
@@ -79,5 +44,4 @@ export function activate(context: ExtensionContext): void {
 export function deactivate(): void {
   fileSystem?.dispose();
   fileSystem = undefined;
-  kickedNotebooks.clear();
 }
