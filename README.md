@@ -94,6 +94,35 @@ The extension uses a FileSystemProvider to create a virtual `databricks-notebook
 
 The original `.py` file remains the source of truth.
 
+## External File Changes and Cell Output Preservation
+
+When a coding agent, external editor, or any other process modifies the `.py` file while you have it open as a notebook, the extension preserves your cell outputs (execution results, printed output, etc.) for cells whose content didn't change.
+
+### How it works
+
+When VS Code detects the underlying `.py` file has changed, it asks the extension to re-read the file. Instead of returning cells with empty outputs (the default behavior, since `.py` files don't store outputs), the extension:
+
+1. Parses the new `.py` content into cells
+2. Diffs the new cells against the currently displayed notebook cells using an LCS-based algorithm
+3. For cells that are unchanged or only modified in content, copies the existing outputs and execution counts into the response
+4. Returns the merged result so VS Code's reload preserves the visual state
+
+### Behavior by scenario
+
+| Scenario | Result |
+|----------|--------|
+| External process adds a cell | New cell appears, all existing outputs preserved |
+| External process modifies a cell's content | Cell content updates, output from that cell preserved (since the cell identity is maintained) |
+| External process deletes a cell | Cell disappears, surrounding cells keep their outputs |
+| External process rewrites the entire file | Outputs preserved for any cells that still match |
+| You save from the notebook view | Self-write detection prevents the change from triggering a reload |
+| Rapid edits (e.g., git operations) | Handled gracefully via VS Code's built-in file watching |
+
+### Limitations
+
+- Outputs are only preserved for cells that can be matched between the old and new versions. If a cell's language type changes (e.g., Python to SQL), it's treated as a delete + insert and the output is lost.
+- The `.py` file format does not store outputs. Outputs exist only in the VS Code notebook view's runtime state. Closing and reopening the notebook always starts with empty outputs.
+
 ## Development
 
 ```bash

@@ -1,5 +1,6 @@
-import { ExtensionContext, workspace, languages } from 'vscode';
+import { ExtensionContext, ExtensionMode, workspace, languages } from 'vscode';
 import { DatabricksNotebookFileSystem } from './filesystem';
+import { NotebookSyncManager } from './notebookSync';
 import { registerCommands } from './commands';
 import { SCHEME } from './constants';
 
@@ -25,6 +26,29 @@ export function activate(context: ExtensionContext): void {
   // Register commands
   registerCommands(context);
 
+  // Register notebook sync manager to preserve cell outputs on external .py changes
+  const isDev = context.extensionMode === ExtensionMode.Development;
+  fileSystem.setDevMode(isDev);
+  const syncManager = new NotebookSyncManager(fileSystem, isDev);
+
+  context.subscriptions.push(
+    workspace.onDidOpenNotebookDocument(notebook => {
+      if (notebook.uri.scheme === SCHEME) {
+        syncManager.register(notebook);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    workspace.onDidCloseNotebookDocument(notebook => {
+      if (notebook.uri.scheme === SCHEME) {
+        syncManager.unregister(notebook);
+      }
+    })
+  );
+
+  context.subscriptions.push({ dispose: () => syncManager.dispose() });
+
   // Register a persistent no-op inline completion provider.
   // This fixes an issue where VS Code doesn't initialize InlineCompletionsController
   // for notebook cells with custom parent URI schemes. Having any provider registered
@@ -35,7 +59,9 @@ export function activate(context: ExtensionContext): void {
   );
   context.subscriptions.push(inlineCompletionProvider);
 
-  console.log('Databricks Notebook extension activated');
+  if (isDev) {
+    console.log('[DEV] Databricks Notebook extension activated');
+  }
 }
 
 /**
