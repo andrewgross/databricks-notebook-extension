@@ -24,7 +24,7 @@ This extension lets you open these files in VS Code's Notebook Editor (the same 
 Open a `.py` file as a notebook using any of these methods:
 
 1. Right-click any `.py` file in the Explorer and select **"Open as Databricks Notebook"**
-2. Right-click in an open `.py` file editor and select **"Open as Databricks Notebook"**
+2. Right-click an open `.py` file's **editor tab** and select **"Open as Databricks Notebook"**
 3. Use the Command Palette: `Databricks: Open as Databricks Notebook`
 
 ## Supported Formats
@@ -43,8 +43,8 @@ import pandas as pd
 
 # COMMAND ----------
 
-%%sql
-SELECT * FROM my_table
+# MAGIC %sql
+# MAGIC SELECT * FROM my_table
 ```
 
 ### Percent Format (Jupytext)
@@ -63,10 +63,11 @@ SELECT * FROM my_table
 ### Supported Magic Commands
 
 - **SQL**: `%sql` (single line) and `%%sql` (cell)
+- **Python**: `%%python` (cell)
 - **Shell**: `%%bash`, `%%sh`
 - **Pip**: `%pip` (displayed as shell for syntax highlighting)
 - **Markdown**: `# MAGIC %md` or `# %% [markdown]`
-- **Other magics**: Preserved as `# MAGIC %command` on save
+- **Other magics**: Single-`%` line magics (e.g., `%restart_python`, `%run`) are preserved as `# MAGIC %command` in Databricks format on save
 
 **NOTE:** Actual human chiming in here. The reason for these magic commands is because I have custom Jupyter `cell_magic` functions registered to these prefixes to do things like running SQL commands via Databricks Connect.  The catchall `# MAGIC` is to handle things like `%restart_python` or `%run` for databricks notebooks.
 
