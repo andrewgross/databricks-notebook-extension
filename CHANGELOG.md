@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Cell output preservation when external processes modify the underlying `.py` file (4b0b2d2)
+- LCS-based cell diff algorithm (`cellDiff.ts`) for matching old and new cells across file changes (4b0b2d2)
+- Notebook sync manager that registers open notebooks for managed file change handling (4b0b2d2)
+- `readFile` output merging: when VS Code reloads a managed notebook, existing cell outputs and execution counts are carried forward for unchanged cells (4b0b2d2)
+- Self-write detection using timestamps to prevent notebook saves from triggering spurious reloads (4b0b2d2)
+- Suppression of transient delete events for managed URIs (handles macOS atomic saves) (4b0b2d2)
+- Dev-only diagnostic logging (`[DEV] [FS]` and `[DEV] [NotebookSync]`) when running via F5 Extension Development Host (4b0b2d2)
+
+### Fixed
+
+- Cell outputs no longer wiped when an external editor or coding agent modifies the `.py` file (4b0b2d2)
+- Self-write tracking no longer leaks entries when file change events are coalesced by the OS (4b0b2d2)
+
 ## [0.4.4] - 2026-01-12
 
 ### Fixed
