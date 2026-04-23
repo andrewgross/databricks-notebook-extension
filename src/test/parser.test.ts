@@ -294,6 +294,89 @@ from foo import create_table`;
     });
   });
 
+  describe('first cell without leading separator (issue #1)', () => {
+    it('parse_notebook_when_first_cell_has_no_separator_does_not_create_empty_cell', () => {
+      const input = `# Databricks notebook source
+# MAGIC %md
+# MAGIC **Test**
+
+# COMMAND ----------
+print("test")`;
+
+      const result = parseNotebook(input);
+      expect(result.cells).toHaveLength(2);
+      expect(result.cells[0]?.cellKind).toBe('markup');
+      expect(result.cells[0]?.source).toContain('**Test**');
+      expect(result.cells[1]?.source).toBe('print("test")');
+    });
+
+    it('roundtrip_notebook_when_first_cell_has_no_separator_does_not_add_empty_cell', () => {
+      const input = `# Databricks notebook source
+# MAGIC %md
+# MAGIC **Test**
+
+# COMMAND ----------
+print("test")`;
+
+      const parsed = parseNotebook(input);
+      const serialized = serializeNotebook(
+        parsed.cells,
+        'databricks',
+        parsed.hasDatabricksHeader
+      );
+      const reparsed = parseNotebook(serialized);
+
+      expect(reparsed.cells.length).toBe(parsed.cells.length);
+      expect(reparsed.cells[0]?.cellKind).toBe('markup');
+      expect(reparsed.cells[0]?.source).toContain('**Test**');
+      expect(reparsed.cells[1]?.source).toBe('print("test")');
+    });
+
+    it('serialize_notebook_when_first_cell_has_no_separator_does_not_create_empty_cell_in_output', () => {
+      const input = `# Databricks notebook source
+# MAGIC %md
+# MAGIC **Test**
+
+# COMMAND ----------
+print("test")`;
+
+      const parsed = parseNotebook(input);
+      const serialized = serializeNotebook(
+        parsed.cells,
+        'databricks',
+        parsed.hasDatabricksHeader
+      );
+
+      // The serialized output should match the original structure:
+      // header, then first cell content, then COMMAND separator, then second cell.
+      // It should NOT insert a COMMAND separator between header and first cell.
+      const lines = serialized.split('\n');
+      const headerIndex = lines.findIndex(l => l === '# Databricks notebook source');
+      expect(headerIndex).toBe(0);
+
+      // Find the first COMMAND separator
+      const firstCommandIndex = lines.findIndex(l => MARKERS.DATABRICKS_CELL_REGEX.test(l.trim()));
+
+      // Between header and first COMMAND, there should be cell content (MAGIC lines), not just blanks
+      const betweenLines = lines.slice(headerIndex + 1, firstCommandIndex);
+      const hasContent = betweenLines.some(l => l.trim() !== '');
+      expect(hasContent).toBe(true);
+    });
+
+    it('parse_notebook_when_first_code_cell_has_no_separator_returns_correct_cells', () => {
+      const input = `# Databricks notebook source
+print("first")
+
+# COMMAND ----------
+print("second")`;
+
+      const result = parseNotebook(input);
+      expect(result.cells).toHaveLength(2);
+      expect(result.cells[0]?.source).toBe('print("first")');
+      expect(result.cells[1]?.source).toBe('print("second")');
+    });
+  });
+
   describe('edge cases', () => {
     it('parse_empty_file_returns_single_empty_cell', () => {
       const input = '';
@@ -324,7 +407,7 @@ from foo import create_table`;
 
 describe('serializeNotebook', () => {
   describe('databricks format', () => {
-    it('serialize_code_cells_with_header', () => {
+    it('serialize_single_code_cell_with_header_has_no_separator', () => {
       const cells = [
         {
           source: 'import pandas as pd',
@@ -337,8 +420,33 @@ describe('serializeNotebook', () => {
 
       const result = serializeNotebook(cells, 'databricks', true);
       expect(result).toContain(MARKERS.DATABRICKS_HEADER);
+      expect(result).not.toContain(MARKERS.DATABRICKS_CELL);
+      expect(result).toContain('import pandas as pd');
+    });
+
+    it('serialize_multiple_code_cells_with_header_has_separator_between_cells', () => {
+      const cells = [
+        {
+          source: 'import pandas as pd',
+          cellKind: 'code' as const,
+          languageId: 'python' as const,
+          startLine: 0,
+          endLine: 1,
+        },
+        {
+          source: 'print("hello")',
+          cellKind: 'code' as const,
+          languageId: 'python' as const,
+          startLine: 2,
+          endLine: 3,
+        },
+      ];
+
+      const result = serializeNotebook(cells, 'databricks', true);
+      expect(result).toContain(MARKERS.DATABRICKS_HEADER);
       expect(result).toContain(MARKERS.DATABRICKS_CELL);
       expect(result).toContain('import pandas as pd');
+      expect(result).toContain('print("hello")');
     });
 
     it('serialize_markdown_cell_adds_magic_prefix', () => {
