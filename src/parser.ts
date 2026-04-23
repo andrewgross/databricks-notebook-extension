@@ -383,9 +383,13 @@ function serializeDatabricksFormat(cells: ParsedCell[], includeHeader: boolean):
     lines.push(MARKERS.DATABRICKS_HEADER);
   }
 
-  for (const cell of cells) {
-    lines.push('');
-    lines.push(MARKERS.DATABRICKS_CELL);
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i]!;
+
+    if (i > 0) {
+      lines.push('');
+      lines.push(MARKERS.DATABRICKS_CELL);
+    }
     lines.push('');
 
     if (cell.cellKind === 'markup' && cell.languageId === 'markdown') {
