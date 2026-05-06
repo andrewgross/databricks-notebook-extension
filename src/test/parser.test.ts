@@ -377,6 +377,80 @@ print("second")`;
     });
   });
 
+  describe('CRLF line endings (issue #3)', () => {
+    it('parse_notebook_with_crlf_line_endings_returns_correct_cells', () => {
+      const input = "# Databricks notebook source\r\n# MAGIC %md\r\n# MAGIC # Test\r\n# MAGIC\r\n# MAGIC this is a test\r\n# MAGIC\r\n\r\n# COMMAND ----------\r\n\r\n# MAGIC %md\r\n# MAGIC ## Import utils\r\n\r\n# COMMAND ----------\r\n\r\n# MAGIC %run ./utils\r\n\r\n# COMMAND ----------\r\n\r\nprint(\"test\")\r\n";
+
+      const result = parseNotebook(input);
+      expect(result.format).toBe('databricks');
+      expect(result.hasDatabricksHeader).toBe(true);
+      expect(result.cells).toHaveLength(4);
+
+      expect(result.cells[0]?.cellKind).toBe('markup');
+      expect(result.cells[0]?.languageId).toBe('markdown');
+      expect(result.cells[0]?.source).toContain('Test');
+      expect(result.cells[0]?.source).toContain('this is a test');
+      expect(result.cells[0]?.source).not.toContain('\r');
+
+      expect(result.cells[1]?.cellKind).toBe('markup');
+      expect(result.cells[1]?.languageId).toBe('markdown');
+      expect(result.cells[1]?.source).toContain('Import utils');
+      expect(result.cells[1]?.source).not.toContain('\r');
+
+      expect(result.cells[2]?.source).toContain('%run ./utils');
+      expect(result.cells[2]?.source).not.toContain('\r');
+
+      expect(result.cells[3]?.source).toBe('print("test")');
+    });
+
+    it('parse_notebook_with_crlf_detects_databricks_header', () => {
+      const input = "# Databricks notebook source\r\n\r\n# COMMAND ----------\r\n\r\nimport pandas as pd\r\n";
+
+      const result = parseNotebook(input);
+      expect(result.format).toBe('databricks');
+      expect(result.hasDatabricksHeader).toBe(true);
+      expect(result.cells).toHaveLength(1);
+      expect(result.cells[0]?.source).toBe('import pandas as pd');
+    });
+
+    it('parse_notebook_with_crlf_detects_command_separators', () => {
+      const input = "# Databricks notebook source\r\n\r\n# COMMAND ----------\r\n\r\ncell1\r\n\r\n# COMMAND ----------\r\n\r\ncell2\r\n";
+
+      const result = parseNotebook(input);
+      expect(result.cells).toHaveLength(2);
+      expect(result.cells[0]?.source).toBe('cell1');
+      expect(result.cells[1]?.source).toBe('cell2');
+    });
+
+    it('roundtrip_crlf_input_produces_lf_output', () => {
+      const input = "# Databricks notebook source\r\n\r\n# COMMAND ----------\r\n\r\n# MAGIC %md\r\n# MAGIC # Title\r\n\r\n# COMMAND ----------\r\n\r\nprint(\"hello\")\r\n";
+
+      const parsed = parseNotebook(input);
+      const serialized = serializeNotebook(parsed.cells, 'databricks', parsed.hasDatabricksHeader);
+
+      expect(serialized).not.toContain('\r');
+      expect(serialized).toContain('# MAGIC %md');
+      expect(serialized).toContain('# MAGIC # Title');
+      expect(serialized).toContain('print("hello")');
+    });
+
+    it('serialize_notebook_with_crlf_in_cell_source_normalizes_to_lf', () => {
+      const cells = [
+        {
+          source: "line1\r\nline2\r\nline3",
+          cellKind: 'code' as const,
+          languageId: 'python' as const,
+          startLine: 0,
+          endLine: 3,
+        },
+      ];
+
+      const result = serializeNotebook(cells, 'databricks', true);
+      expect(result).not.toContain('\r');
+      expect(result).toContain('line1\nline2\nline3');
+    });
+  });
+
   describe('edge cases', () => {
     it('parse_empty_file_returns_single_empty_cell', () => {
       const input = '';

@@ -338,6 +338,64 @@ from pyspark.sql import Window`;
   });
 });
 
+describe('CRLF line endings (issue #3)', () => {
+  it('pyToIpynb_with_crlf_input_parses_cells_correctly', () => {
+    const pyContent = "# Databricks notebook source\r\n\r\n# COMMAND ----------\r\n\r\n# MAGIC %md\r\n# MAGIC # Title\r\n\r\n# COMMAND ----------\r\n\r\nprint(\"hello\")\r\n";
+
+    const ipynbJson = pyToIpynb(pyContent);
+    const ipynb = JSON.parse(ipynbJson) as IpynbNotebook;
+
+    expect(ipynb.cells).toHaveLength(2);
+    expect(ipynb.cells[0].cell_type).toBe('markdown');
+    expect(ipynb.cells[0].source.join('')).toContain('# Title');
+    expect(ipynb.cells[0].source.join('')).not.toContain('\r');
+    expect(ipynb.cells[1].cell_type).toBe('code');
+    expect(ipynb.cells[1].source.join('')).toContain('print("hello")');
+    expect(ipynb.cells[1].source.join('')).not.toContain('\r');
+  });
+
+  it('ipynbToPy_output_does_not_contain_crlf', () => {
+    const ipynb = {
+      cells: [
+        {
+          cell_type: 'code',
+          source: ['line1\r\n', 'line2\r\n', 'line3'],
+          metadata: {},
+          execution_count: null,
+          outputs: [],
+        },
+      ],
+      metadata: {
+        databricks_notebook: {
+          format: 'databricks',
+          hasDatabricksHeader: true,
+        },
+      },
+      nbformat: 4,
+      nbformat_minor: 5,
+    };
+
+    const pyContent = ipynbToPy(JSON.stringify(ipynb));
+    expect(pyContent).not.toContain('\r');
+    expect(pyContent).toContain('line1');
+    expect(pyContent).toContain('line2');
+    expect(pyContent).toContain('line3');
+  });
+
+  it('roundtrip_crlf_py_to_ipynb_to_py_normalizes_line_endings', () => {
+    const originalPy = "# Databricks notebook source\r\n\r\n# COMMAND ----------\r\n\r\nimport pandas as pd\r\n\r\n# COMMAND ----------\r\n\r\n# MAGIC %md\r\n# MAGIC # Title\r\n\r\n# COMMAND ----------\r\n\r\nprint(\"hello\")\r\n";
+
+    const ipynb = pyToIpynb(originalPy);
+    const roundTrippedPy = ipynbToPy(ipynb);
+
+    expect(roundTrippedPy).not.toContain('\r');
+    expect(roundTrippedPy).toContain('# Databricks notebook source');
+    expect(roundTrippedPy).toContain('import pandas as pd');
+    expect(roundTrippedPy).toContain('# MAGIC %md');
+    expect(roundTrippedPy).toContain('print("hello")');
+  });
+});
+
 describe('unknown magic handling', () => {
   it('preserves unknown line magics with # MAGIC prefix', () => {
     const ipynb = {
