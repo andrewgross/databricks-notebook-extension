@@ -62,7 +62,7 @@ interface IpynbNotebook {
  * Convert Databricks .py content to .ipynb JSON format
  */
 export function pyToIpynb(pyContent: string): string {
-  const parsed = parseNotebook(pyContent);
+  const parsed = parseNotebook(pyContent.replace(/\r\n/g, '\n'));
 
   const ipynbCells: IpynbCell[] = parsed.cells.map(cell => {
     // Split source into lines (ipynb stores as array of lines)
@@ -197,9 +197,9 @@ function splitIntoLines(content: string): string[] {
  */
 function joinLines(lines: string | string[]): string {
   if (typeof lines === 'string') {
-    return lines;
+    return lines.replace(/\r\n/g, '\n');
   }
-  return lines.join('');
+  return lines.join('').replace(/\r\n/g, '\n');
 }
 
 /**

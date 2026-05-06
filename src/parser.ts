@@ -11,7 +11,7 @@ import {
  * Parse a .py file into notebook cells
  */
 export function parseNotebook(content: string): ParsedNotebook {
-  const lines = content.split('\n');
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
   const format = detectFormat(lines);
   const hasDatabricksHeader = lines[0]?.trim() === MARKERS.DATABRICKS_HEADER;
 
@@ -362,15 +362,17 @@ export function serializeNotebook(
   format: NotebookFormat,
   includeHeader: boolean = true
 ): string {
-  if (format === 'plain' || cells.length === 0) {
-    return cells.map(c => c.source).join('\n');
+  const normalized = cells.map(c => ({ ...c, source: c.source.replace(/\r\n/g, '\n') }));
+
+  if (format === 'plain' || normalized.length === 0) {
+    return normalized.map(c => c.source).join('\n');
   }
 
   if (format === 'percent') {
-    return serializePercentFormat(cells);
+    return serializePercentFormat(normalized);
   }
 
-  return serializeDatabricksFormat(cells, includeHeader);
+  return serializeDatabricksFormat(normalized, includeHeader);
 }
 
 /**
